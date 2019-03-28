@@ -19,10 +19,15 @@ challenges <- ep %>%
 running_challenge <- challenges[(html_node(challenges, "h2") %>% html_attr("id")) == payload$submission$challenge]
 
 challenge_text <- running_challenge %>% 
-  html_nodes(xpath = "p|div") %>% 
-  stringr::str_replace_all(c("</?pre.*?>" = "``","</?code.*?>" = "`", "</?.*?>" = "", "\\n" = " ")) %>% 
-  glue::glue_collapse("\n")
-
+  html_nodes(xpath = "p|div|pre|h1|h2|h3|h4") %>% 
+  discard(~html_attr(., "id") %in% payload$submission$challenge) %>% 
+  #stringr::str_replace_all(c("</?pre.*?>" = "``","</?code.*?>" = "`", "</?.*?>" = "", "\\n" = " ")) %>% 
+  #format if not a code block
+  map_if(~!html_name(.) %in% c("div", "pre"), ~stringr::str_replace_all(., c("</?code.*?>" = "`", "</?h\\d.*?>" = "*", "</?.*?>" = "", "\\n" = " ", "  +?" = " ")) %>% stringr::str_wrap(width = 90)) %>%
+  #if code block
+  map_if(~class(.) == "xml_node", ~stringr::str_replace_all(., c("</?pre.*?>" = "```", "</?.*?>" = ""))) %>%
+  trimws() %>%
+  stringr::str_flatten("\n")
 
 time_left <- function() {
   secs_left <- difftime(end_time, now(), units = "sec") %>% as.integer()
@@ -30,16 +35,18 @@ time_left <- function() {
   glue::glue("{floor(secs_left / 60)}:{sprintf('%0.2d', secs_left%%60)}")
 }
 
+challenge_title <- glue::glue("<{payload$state}#{payload$submission$challenge}|*{running_challenge %>% html_node('h2') %>% html_text()}*>")
+
 message <- list(
   response_type = "in_channel",
   channel = payload$channel$id,
-  text = challenge_text,
+  text = glue::glue("{challenge_title}\n{challenge_text}"),
   blocks = list(
     list(
       type = "section",
       text = list(
         type = "mrkdwn",
-        text = challenge_text
+        text = glue::glue("{challenge_title}\n{challenge_text}")
       )
     ),
     list(
@@ -53,24 +60,27 @@ message <- list(
     ),
     list(
       type = "actions",
+      block_id = "exercise_buttons",
       elements = list(
         list(
           type = "button",
+          action_id = "exercise_finished",
           text = list(
             text = ":thumbsup: Completed",
             type = "plain_text",
             emoji = T
           ),
-          value = "finished"
+          value = glue::glue("finished_{payload$submission$challenge}")
         ),
         list(
           type = "button",
+          action_id = "exercise_need_help",
           text = list(
             text = ":sos: I need help",
             type = "plain_text",
             emoji = T
           ),
-          value = "help"
+          value = glue::glue("help_{payload$submission$challenge}")
         )
       )
     )
