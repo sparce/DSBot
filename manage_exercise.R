@@ -3,8 +3,12 @@ library(jsonlite)
 library(httr)
 library(rvest)
 library(lubridate)
+library(RSQLite)
+library(dplyr)
+library(magrittr)
 
 token <- Sys.getenv("SLACK_BOT_TOKEN")
+db <- dbConnect(SQLite(), "data/exercises.sql")
 
 payload <- commandArgs(trailingOnly = T) %>% fromJSON()
 
@@ -60,7 +64,7 @@ message <- list(
     ),
     list(
       type = "actions",
-      block_id = "exercise_buttons",
+      block_id = glue::glue("exercise_buttons|{payload$state}|{payload$submission$challenge}"),
       elements = list(
         list(
           type = "button",
@@ -93,12 +97,27 @@ saveRDS(resp, "resp.rds")
 
 #Update message with time remaining for challenge
 while(end_time > now()) {
-  
+  print("Start loop")
   old_message <- content(resp)
   
   #Update time left
   new_blocks <- old_message$message$blocks
   new_blocks[[2]]$elements[[1]]$text <- glue::glue("*Time left:* {time_left()}")
+  
+  #Update completed users
+  challenge_id <- digest::digest(glue::glue("{old_message$ts}:{old_message$message$blocks[[3]]$block_id}"))
+  completed_users <- tbl(db, "exercises") %>% filter(id == challenge_id, action == "finished") %>% left_join(tbl(db, "users")) %>% select(name, avatar) %>% collect() %>% group_by(name, avatar) %>% summarise()  %$% map2(name, avatar, ~list(type = "image", alt_text = .x, image_url = .y))
+  
+  print(completed_users)
+  
+  completed_block <- list(
+    type = "context",
+    elements = c(list(list(type= "mrkdwn", text = glue::glue("{length(completed_users)} completed:"))) , completed_users)
+  )
+  
+  if(length(completed_users)>0) {
+    new_blocks[[4]] <- completed_block
+  }
   
   updated_message <- list(
     channel = old_message$channel,
@@ -109,7 +128,7 @@ while(end_time > now()) {
   
   resp <- POST("https://slack.com/api/chat.update",add_headers("Authorization" = glue::glue("Bearer {token}")), body = updated_message, encode = "json")
   
-  Sys.sleep(5)
+  Sys.sleep(0.5)
 
 }
 
