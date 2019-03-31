@@ -3,6 +3,7 @@ library(rvest)
 library(purrr)
 library(jsonlite)
 library(future)
+library(magrittr)
 
 future::plan("multiprocess")
 
@@ -13,6 +14,10 @@ token <- Sys.getenv("SLACK_BOT_TOKEN")
 #* @serializer unboxedJSON
 
 function(req, res, channel_id, text, trigger_id) {
+  
+  saveRDS(req, file = "exercise_request.rds")
+  saveRDS(res, file = "exercise_response.rds")
+  
   episode = trimws(text) %>% stringr::str_remove_all("^<|>$")
   
   if(!stringr::str_detect(episode, "https?://csiro-data-school.github.io")) {
@@ -40,7 +45,7 @@ function(req, res, payload) {
   
   #Clicked button at end of exercise
   if (payload$type == "block_actions") {
-    if (payload$actions$block_id == "exercise_buttons") {
+    if (stringr::str_detect(payload$actions$block_id, "exercise_buttons")) {
       system(paste0("Rscript exercise_button_click.R"," '", toJSON(payload, auto_unbox = T), "'"), wait = F, ignore.stdout = T, ignore.stderr = T)
     }
   }
