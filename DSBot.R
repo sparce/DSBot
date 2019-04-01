@@ -28,7 +28,7 @@ function(req, res, channel_id, text, trigger_id) {
   }
   
   system(glue::glue("Rscript create_exercise_dialog.R {episode} {trigger_id}"), wait = F, ignore.stdout = T, ignore.stderr = T)
-
+  
   res$status <- 200
   return(res)
 }
