@@ -95,6 +95,12 @@ resp <- POST("https://slack.com/api/chat.postMessage",add_headers("Authorization
 
 saveRDS(resp, "resp.rds")
 
+# Log the exercise start
+
+exercise_message <- content(resp)
+log_data <- tibble::tibble(id = digest::digest(glue::glue("{exercise_message$message$ts}:{glue::glue('exercise_buttons|{payload$state}|{payload$submission$challenge}')}")), timestamp = as.character(lubridate::now()), episode = payload$state, challenge = payload$submission$challenge, user = payload$user$id, action = "created")
+dbWriteTable(db, 'exercises', log_data, append = T)
+
 #Update message with time remaining for challenge
 while(end_time > now()) {
   print("Start loop")
