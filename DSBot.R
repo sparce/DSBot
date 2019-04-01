@@ -2,16 +2,11 @@ library(httr)
 library(rvest)
 library(purrr)
 library(jsonlite)
-library(future)
 library(magrittr)
 library(lubridate)
 library(RSQLite)
 library(dbplyr)
 
-future::plan(multiprocess)
-
-source("create_exercise_dialog.R")
-source("manage_exercise.R")
 
 db <- dbConnect(SQLite(), "data/exercises.sql")
 
@@ -32,7 +27,7 @@ function(req, res, channel_id, text, trigger_id) {
     return(list(text = "Please try again with the link to an episode."))
   }
   
-  resp <- create_exercise_dialog(token, episode, trigger_id)
+  resp <- system(glue::glue("Rscript create_exercise_dialog.R {episode} {trigger_id}"), wait = F, ignore.stdout = T, ignore.stderr = T)
   
   resp <- content(resp)
   
@@ -52,14 +47,14 @@ function(req, res, payload) {
   #Response is from 'Exercise' dialog box; pass off to exercise manager
   if (payload$type == "dialog_submission") {
     if(payload$callback_id == "exercise_callback"){
-      f %<-% manage_exercise(token, db, payload)
+      system(paste0("Rscript manage_exercise.R"," '", toJSON(payload, auto_unbox = T), "'"), wait = F, ignore.stdout = T, ignore.stderr = T)
     }
   }
   
   #Clicked button at end of exercise
   if (payload$type == "block_actions") {
     if (stringr::str_detect(payload$actions$block_id, "exercise_buttons")) {
-     f %<-% process_exercise_button_click(token, db, payload)
+      system(paste0("Rscript exercise_button_click.R"," '", toJSON(payload, auto_unbox = T), "'"), wait = F, ignore.stdout = T, ignore.stderr = T)
     }
   }
   
