@@ -18,7 +18,7 @@ challenge_title <- GET(d[[1]][2]) %>% content %>% html_node(glue::glue("#{d[[1]]
 if(payload$actions$action_id == "exercise_need_help") {
   
   #find_helpers
-  helpers <- c("UHAGQKENT")
+  helpers <- readRDS("data/instructors.rds")
   
   call_helpers <- list(users = stringr::str_flatten(helpers, collapse = ","))
   

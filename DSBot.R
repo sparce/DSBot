@@ -13,6 +13,10 @@ db <- dbConnect(SQLite(), "data/exercises.sql")
 token <- Sys.getenv("SLACK_BOT_TOKEN")
 
 
+userify <- function(user_id) {
+  return(glue::glue("<@{user_id}>"))
+}
+
 #* @post /exercise
 #* @serializer unboxedJSON
 
@@ -59,6 +63,31 @@ function(req, res, payload) {
 }
 #* @post /slack
 #* @json
-function(challenge) {
-  list(challenge=challenge)
+function(req, res, event, authed_users, challenge) {
+  
+  #Someone uses @DSBot in channel
+  if(event$type == "app_mention") {
+    
+    #Setting instructors for the day
+    if(stringr::str_detect(event$text, "(?i)instruct")) {
+      users <- stringr::str_extract_all(event$text, "<@.*?>")[[1]] %>% 
+        stringr::str_remove_all("[<@>]")
+      
+      non_bots <- users[!users %in% authed_users]
+      
+      saveRDS(non_bots, "data/instructors.rds")
+      
+      
+      POST("https://slack.com/api/chat.postEphemeral",add_headers("Authorization" = glue::glue("Bearer {token}")), body = list(channel = event$channel, user = event$user, text = glue::glue("OK, I\'ll let {glue::glue_collapse(userify(non_bots), sep = ', ', last = ' & ')} know if anyone needs help."), as_user = T), encode = "json")
+      
+      #return(list(text=glue::glue("OK, I\'ll let {glue::glue_collapse(userify(non_bots), sep = ', ', last = ' & ')} know if anyone needs help.")))
+    }
+    
+  }
+  
+  
+  res$status <- 200
+  return(res)
+  #Return challenge for url authorisation
+  #list(challenge=challenge)
 }
