@@ -112,7 +112,7 @@ while(end_time > now()) {
   
   #Update completed users
   challenge_id <- digest::digest(glue::glue("{old_message$ts}:{old_message$message$blocks[[3]]$block_id}"))
-  completed_users <- tbl(db, "exercises") %>% filter(id == challenge_id, action == "finished") %>% left_join(tbl(db, "users")) %>% select(name, avatar) %>% collect() %>% group_by(name, avatar) %>% summarise() %>% tidyr::replace_na(list(avatar = "https://imgplaceholder.com/24x24?text=%3F"))  %$% map2(name, avatar, ~list(type = "image", alt_text = .x, image_url = .y))
+  completed_users <- tbl(db, "exercises") %>% filter(id == challenge_id, action == "finished") %>% inner_join(tbl(db, "users")) %>% select(name, avatar) %>% collect() %>% group_by(name, avatar) %>% summarise() %$% map2(name, avatar, ~list(type = "image", alt_text = .x, image_url = .y))
   
   print(completed_users)
   
