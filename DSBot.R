@@ -33,10 +33,6 @@ function(req, res) {
   info <- glue::glue("v0:{req$HTTP_X_SLACK_REQUEST_TIMESTAMP}:{req$postBody}")
   
   signature <- digest::hmac(key = signing_key, object = info, algo = "sha256")
-  
-  print(info)
-  print(signature)
-  print(req$HTTP_X_SLACK_SIGNATURE)
         
   if (glue::glue("v0={signature}") == req$HTTP_X_SLACK_SIGNATURE) {
     plumber::forward()
@@ -91,12 +87,6 @@ function(req, res, payload) {
 #* @json
 function(req, res, event, authed_users, challenge) {
   
-  if(!is.null(challenge)) {
-    #Return challenge for url authorisation
-    return(list(challenge=challenge))
-  }
-  
-  
   #Someone uses @DSBot in channel
   if(event$type == "app_mention") {
     
@@ -117,5 +107,6 @@ function(req, res, event, authed_users, challenge) {
   
   
   res$status <- 200
-  return(res)
+  #Return challenge for url authorisation
+  return(list(challenge=challenge))
 }
