@@ -23,13 +23,13 @@ challenges <- ep %>%
 running_challenge <- challenges[(html_node(challenges, "h2") %>% html_attr("id")) == payload$submission$challenge]
 
 challenge_text <- running_challenge %>% 
-  html_nodes(xpath = "p|div|pre|h1|h2|h3|h4") %>% 
+  html_nodes(xpath = "p|div|pre|h1|h2|h3|h4|ol|ul") %>% 
   discard(~html_attr(., "id") %in% payload$submission$challenge) %>% 
   #stringr::str_replace_all(c("</?pre.*?>" = "``","</?code.*?>" = "`", "</?.*?>" = "", "\\n" = " ")) %>% 
   #format if not a code block
-  map_if(~!html_name(.) %in% c("div", "pre"), ~stringr::str_replace_all(., c("</?code.*?>" = "`", "</?h\\d.*?>" = "*", "</?.*?>" = "", "\\n" = " ", "  +?" = " ")) %>% stringr::str_wrap(width = 90)) %>%
+  map_if(~!html_name(.) %in% c("div", "pre", "ol", "ul"), ~stringr::str_replace_all(., c("</?code.*?>" = "`", "</?h\\d.*?>" = "*", "</?.*?>" = "", "\\n" = " ", "  +?" = " ")) %>% stringr::str_wrap(width = 90)) %>%
   #if code block
-  map_if(~class(.) == "xml_node", ~stringr::str_replace_all(., c("</?pre.*?>" = "```", "</?.*?>" = ""))) %>%
+  map_if(~class(.) == "xml_node", ~stringr::str_replace_all(., c("</?pre.*?>" = "```", "</?[o|u]l>" = "```", "<li>"="* ","</?.*?>" = "", "\n .*?\\*" = "\n\\*", "\n .*?```"="```"))) %>%
   trimws() %>%
   stringr::str_flatten("\n")
 
