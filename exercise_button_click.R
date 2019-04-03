@@ -42,7 +42,7 @@ if(payload$actions$action_id == "exercise_need_help") {
   #print(content(resp))
   
   #Log the help request
-  log_data <- tibble::tibble(id = digest::digest(glue::glue("{payload$message$ts}:{payload$actions$block_id}")), timestamp = as.character(lubridate::now()), episode = d[[1]][2], challenge = d[[1]][3], user = payload$user$id, action = "help")
+  log_data <- tibble::tibble(id = digest::digest(glue::glue("{payload$message$ts}:{payload$actions$block_id}")), timestamp = as.character(lubridate::now()), episode = d[[1]][2], challenge = d[[1]][3], user = payload$user$id, channel = payload$channel$name, action = "help")
   dbWriteTable(db, 'exercises', log_data, append = T)
   }
   
@@ -51,7 +51,7 @@ if(payload$actions$action_id == "exercise_need_help") {
 
 if(payload$actions$action_id == "exercise_finished") {
   
-  log_data <- tibble::tibble(id = digest::digest(glue::glue("{payload$message$ts}:{payload$actions$block_id}")), timestamp = as.character(lubridate::now()), episode = d[[1]][2], challenge = d[[1]][3], user = payload$user$id, action = "finished")
+  log_data <- tibble::tibble(id = digest::digest(glue::glue("{payload$message$ts}:{payload$actions$block_id}")), timestamp = as.character(lubridate::now()), episode = d[[1]][2], challenge = d[[1]][3], user = payload$user$id, channel = payload$channel$name, action = "finished")
   dbWriteTable(db, 'exercises', log_data, append = T)
   
   #Haven't seen user before
