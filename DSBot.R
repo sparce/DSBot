@@ -11,19 +11,46 @@ library(dbplyr)
 db <- dbConnect(SQLite(), "data/exercises.sql")
 
 token <- Sys.getenv("SLACK_BOT_TOKEN")
-
+signing_key <- Sys.getenv("SLACK_SIGNING_KEY")
 
 userify <- function(user_id) {
   return(glue::glue("<@{user_id}>"))
 }
 
+#Verify Slack's signature
+#* @filter signature_check
+function(req, res) {
+
+  #Sent less than 5 mins ago?
+  timestamp <- as.integer(req$HTTP_X_SLACK_REQUEST_TIMESTAMP) %>% as_datetime()
+  fresh_req <-  timestamp %within% ((now() - minutes(5)) %--% now())
+  
+  if (!fresh_req) {
+    res$status <- 408
+    return(res)
+  }
+  
+  info <- glue::glue("v0:{req$HTTP_X_SLACK_REQUEST_TIMESTAMP}:{req$postBody}")
+  
+  signature <- digest::hmac(key = signing_key, object = info, algo = "sha256")
+  
+  print(info)
+  print(signature)
+  print(req$HTTP_X_SLACK_SIGNATURE)
+        
+  if (glue::glue("v0={signature}") == req$HTTP_X_SLACK_SIGNATURE) {
+    plumber::forward()
+  }
+  
+  res$status <- 401
+  return(res)
+}
+
+
 #* @post /exercise
 #* @serializer unboxedJSON
 
 function(req, res, channel_id, text, trigger_id) {
-  
-  #saveRDS(req, file = "exercise_request.rds")
-  #saveRDS(res, file = "exercise_response.rds")
   
   episode = trimws(text) %>% stringr::str_remove_all("^<|>$")
   
@@ -42,8 +69,7 @@ function(req, res, channel_id, text, trigger_id) {
 function(req, res, payload) {
   
   payload <- jsonlite::fromJSON(payload)
-  saveRDS(payload, "payload.rds")
-  
+
   #Response is from 'Exercise' dialog box; pass off to exercise manager
   if (payload$type == "dialog_submission") {
     if(payload$callback_id == "exercise_callback"){
@@ -65,6 +91,12 @@ function(req, res, payload) {
 #* @json
 function(req, res, event, authed_users, challenge) {
   
+  if(!is.null(challenge)) {
+    #Return challenge for url authorisation
+    return(list(challenge=challenge))
+  }
+  
+  
   #Someone uses @DSBot in channel
   if(event$type == "app_mention") {
     
@@ -79,8 +111,6 @@ function(req, res, event, authed_users, challenge) {
       
       
       POST("https://slack.com/api/chat.postEphemeral",add_headers("Authorization" = glue::glue("Bearer {token}")), body = list(channel = event$channel, user = event$user, text = glue::glue("OK, I\'ll let {glue::glue_collapse(userify(non_bots), sep = ', ', last = ' & ')} know if anyone needs help."), as_user = T), encode = "json")
-      
-      #return(list(text=glue::glue("OK, I\'ll let {glue::glue_collapse(userify(non_bots), sep = ', ', last = ' & ')} know if anyone needs help.")))
     }
     
   }
@@ -88,6 +118,4 @@ function(req, res, event, authed_users, challenge) {
   
   res$status <- 200
   return(res)
-  #Return challenge for url authorisation
-  #list(challenge=challenge)
 }
