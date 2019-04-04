@@ -85,7 +85,7 @@ function(req, res, payload) {
 }
 #* @post /slack
 #* @json
-function(req, res, event, authed_users, challenge) {
+function(req, res, event, authed_users, challenge = NULL) {
   
   #Someone uses @DSBot in channel
   if(event$type == "app_mention") {
@@ -107,6 +107,8 @@ function(req, res, event, authed_users, challenge) {
   
   
   res$status <- 200
+  return(res)
+  
   #Return challenge for url authorisation
-  return(list(challenge=challenge))
+  #return(list(challenge=challenge))
 }

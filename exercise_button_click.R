@@ -58,7 +58,10 @@ if(payload$actions$action_id == "exercise_finished") {
   if (!payload$user$id %in% (tbl(db, from = "users") %>% collect() %>% .$user)) {
     res <- POST("https://slack.com/api/users.info",add_headers("Authorization" = glue::glue("Bearer {token}")), body = list(user = payload$user$id)) %>% content()
     if(res$ok) {
-      dbWriteTable(db, "users", tibble::tibble(user = res$user$id, name = res$user$profile$display_name, avatar = res$user$profile$image_24), append = T)
+      
+      name <- ifelse(res$user$profile$display_name == "", res$user$profile$real_name, res$user$profile$display_name)
+      
+      dbWriteTable(db, "users", tibble::tibble(user = res$user$id, name = name, avatar = res$user$profile$image_24), append = T)
       
     }
   }
